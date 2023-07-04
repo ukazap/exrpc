@@ -8,6 +8,7 @@ defmodule ExRPC.Server do
 
   def start_link(opts) do
     mfa_list = Keyword.get(opts, :routes, [])
+
     routes =
       case FunctionRoutes.create(mfa_list) do
         {:ok, routes} -> routes

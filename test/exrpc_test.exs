@@ -17,8 +17,18 @@ defmodule ExRPCTest do
   use ExUnit.Case
   doctest ExRPC
 
-  describe "pipeline" do
-    test "should work" do
+  describe "empty function list/routes" do
+    test "should not be able to start server" do
+      function_list = []
+
+      assert_raise ArgumentError, fn ->
+        ExRPC.Server.start_link(name: RPC.Server, port: 5670, routes: function_list)
+      end
+    end
+  end
+
+  describe "server and client started" do
+    test "call should work" do
       # server-side
       function_list = [{Greeter, :hello, 1}, {Greeter, :goodbye, 1}, {Adder, :add, 2}]
       start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
@@ -32,8 +42,10 @@ defmodule ExRPCTest do
       assert {:badrpc, :invalid_mfa} = ExRPC.call(RPC.Client, Greeter, :howdy, ["world"])
       assert {:badrpc, :invalid_mfa} = ExRPC.call(RPC.Client, Greeter, :hello, [])
     end
+  end
 
-    test "call too long should return timeout" do
+  describe "server takes too long to reply" do
+    test "call should return :timeout error" do
       # server-side
       function_list = [{Timer, :sleep, 1}]
       start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
@@ -48,8 +60,10 @@ defmodule ExRPCTest do
       assert {:badrpc, :timeout} =
                ExRPC.call(RPC.Client, Timer, :sleep, [350], receive_timeout_ms)
     end
+  end
 
-    test "call when server down should raise conn refused" do
+  describe "server down/unavailable" do
+    test "call should return :disconnected error" do
       # server-side
       function_list = [{Greeter, :hello, 1}]
       start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
@@ -75,15 +89,7 @@ defmodule ExRPCTest do
       assert "Hello world" = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
     end
 
-    test "starting server without routes should fail" do
-      function_list = []
-
-      assert_raise ArgumentError, fn ->
-        ExRPC.Server.start_link(name: RPC.Server, port: 5670, routes: function_list)
-      end
-    end
-
-    test "starting client before starting server should work" do
+    test "should be able to start client" do
       # client-side
       start_supervised!(
         {ExRPC.Client, name: RPC.Client, host: "localhost", port: 5670, pool_size: 5}
@@ -93,8 +99,6 @@ defmodule ExRPCTest do
       function_list = [{Greeter, :hello, 1}]
       start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
 
-      assert {:badrpc, :disconnected} = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
-
       Enum.each(1..1000, fn _ ->
         ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
       end)
@@ -102,4 +106,24 @@ defmodule ExRPCTest do
       assert "Hello world" = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
     end
   end
+
+  # describe "bench" do
+  #   test "bench" do
+  #     # server-side
+  #     function_list = [{Greeter, :hello, 1}]
+  #     start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
+
+  #     # client-side
+  #     start_supervised!(
+  #       {ExRPC.Client, name: RPC.Client, host: "localhost", port: 5670, pool_size: 5}
+  #     )
+
+  #     Benchee.run(
+  #       %{
+  #         "hello_world" => fn -> ExRPC.call(RPC.Client, Greeter, :hello, ["world"], 1000) end
+  #       },
+  #       parallel: System.schedulers_online()
+  #     )
+  #   end
+  # end
 end

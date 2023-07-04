@@ -30,11 +30,12 @@ defmodule ExRPC.MixProject do
 
   defp deps do
     [
+      {:benchee, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
       {:nimble_pool, "~> 1.0"},
       {:plug_crypto, "~> 1.2"},
-      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
-      {:thousand_island, "~> 0.6.7"}
+      {:thousand_island, "~> 0.6.7"},
     ]
   end
 
