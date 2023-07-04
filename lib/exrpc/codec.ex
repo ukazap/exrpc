@@ -1,7 +1,7 @@
-defmodule ExRPC.Codec do
+defmodule Exrpc.Codec do
   @moduledoc false
 
-  @type inbound :: list() | :list_routes
+  @type inbound :: list() | :mfa_list
   @type outbound :: {:goodrpc, any()} | {:badrpc, any()}
 
   @spec encode(term()) :: binary()
@@ -9,7 +9,7 @@ defmodule ExRPC.Codec do
   def encode({:badrpc, :invalid_mfa}), do: "1"
   def encode({:badrpc, :invalid_message}), do: "2"
   def encode({:badrpc, reason}), do: "3" <> term_to_binary(reason)
-  def encode(:list_routes), do: "?"
+  def encode(:mfa_list), do: "?"
 
   def encode([fun_id, args] = term) when is_integer(fun_id) and is_list(args),
     do: "!" <> term_to_binary(term)
@@ -26,7 +26,7 @@ defmodule ExRPC.Codec do
     end
   end
 
-  def decode("?"), do: :list_routes
+  def decode("?"), do: :mfa_list
 
   def decode("!" <> bin) do
     with [fun_id, args] when is_integer(fun_id) and is_list(args) <- binary_to_term(bin) do

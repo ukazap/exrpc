@@ -1,4 +1,4 @@
-defmodule ExRPC.MixProject do
+defmodule Exrpc.MixProject do
   use Mix.Project
 
   def project do
@@ -6,7 +6,7 @@ defmodule ExRPC.MixProject do
       app: :exrpc,
       description: "Simple Elixir RPC",
       package: package(),
-      version: "0.1.2",
+      version: "0.2.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -30,10 +30,11 @@ defmodule ExRPC.MixProject do
 
   defp deps do
     [
+      {:benchee, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
       {:nimble_pool, "~> 1.0"},
       {:plug_crypto, "~> 1.2"},
-      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
       {:thousand_island, "~> 0.6.7"}
     ]
   end

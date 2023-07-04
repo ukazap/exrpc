@@ -1,6 +1,8 @@
-# ExRPC
+# Exrpc
 
-Elixir RPC without Erlang distribution.
+Simple Elixir RPC.
+
+**!!! This is a pre-stable release, expect breaking API changes !!!**
 
 ## Installation
 
@@ -10,7 +12,7 @@ by adding `exrpc` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:exrpc, "~> 0.1.0"}
+    {:exrpc, "~> 0.2.0"}
   ]
 end
 ```
@@ -22,7 +24,5 @@ be found at <https://hexdocs.pm/exrpc>.
 ## ToDo
 
 - [x] Function allowlist/routing
-- [ ] Benchmark vs gRPC vs HTTP JSON API vs `:rpc.call/4` (Erlang distribution)
-- [ ] Usage documentation
-- [ ] Design documentation
-- [ ] Publish to Hex.pm
+- [x] Publish to Hex.pm
+- [ ] Documentation

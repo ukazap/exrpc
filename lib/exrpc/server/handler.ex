@@ -1,31 +1,31 @@
-defmodule ExRPC.Server.Handler do
+defmodule Exrpc.Server.Handler do
   @moduledoc false
 
   use ThousandIsland.Handler
 
-  alias ExRPC.Codec
-  alias ExRPC.FunctionRoutes
+  alias Exrpc.Codec
+  alias Exrpc.MFALookup
 
   @impl ThousandIsland.Handler
-  def handle_data(data, socket, %{routes: routes} = state) do
+  def handle_data(data, socket, mfa_lookup) do
     reply =
       data
       |> Codec.decode()
-      |> process(routes)
+      |> process(mfa_lookup)
       |> Codec.encode()
 
     ThousandIsland.Socket.send(socket, reply)
-    {:continue, state}
+    {:continue, mfa_lookup}
   end
 
-  defp process(:list_routes, routes) do
-    {:goodrpc, FunctionRoutes.to_list(routes)}
+  defp process(:mfa_list, mfa_lookup) do
+    {:goodrpc, MFALookup.to_list(mfa_lookup)}
   end
 
-  defp process([route_id, args], routes) when is_list(args) do
+  defp process([id, args], mfa_lookup) when is_list(args) do
     arity = length(args)
 
-    case FunctionRoutes.id_to_route(routes, route_id) do
+    case MFALookup.id_to_mfa(mfa_lookup, id) do
       {mod, fun, ^arity} ->
         try do
           result = apply(mod, fun, args)

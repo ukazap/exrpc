@@ -1,22 +1,33 @@
-defmodule ExRPC.Server do
+defmodule Exrpc.Server do
   @moduledoc false
 
   use Supervisor
 
-  alias ExRPC.FunctionRoutes
-  alias ExRPC.Server.Handler
+  alias Exrpc.MFA
+  alias Exrpc.MFALookup
+  alias Exrpc.Server.Handler
 
   def start_link(opts) do
-    mfa_list = Keyword.get(opts, :routes, [])
-    routes =
-      case FunctionRoutes.create(mfa_list) do
-        {:ok, routes} -> routes
-        {:error, _} -> raise ArgumentError, "invalid or empty list of routes"
+    port = Keyword.fetch!(opts, :port)
+    if !is_integer(port), do: raise(ArgumentError, "invalid port #{inspect(port)}")
+
+    mfa_list =
+      opts
+      |> Keyword.fetch!(:mfa_list)
+      |> Enum.filter(&MFA.valid?/1)
+      |> Enum.uniq()
+      |> case do
+        [] -> raise ArgumentError, "invalid mfa_list"
+        list -> list
       end
 
+    # see https://hexdocs.pm/thousand_island/ThousandIsland.Transports.TCP.html
+    transport_options = Keyword.get(opts, :transport_options, [])
+
     init_arg = %{
-      port: Keyword.fetch!(opts, :port),
-      routes: routes
+      port: port,
+      mfa_list: mfa_list,
+      transport_options: transport_options
     }
 
     Supervisor.start_link(__MODULE__, init_arg, name: opts[:name])
@@ -33,9 +44,15 @@ defmodule ExRPC.Server do
 
   @impl Supervisor
   def init(init_arg) do
+    {:ok, mfa_lookup} = MFALookup.create(init_arg.mfa_list)
+
     children = [
       {ThousandIsland,
-       port: init_arg.port, handler_module: Handler, handler_options: %{routes: init_arg.routes}}
+       port: init_arg.port,
+       handler_module: Handler,
+       handler_options: mfa_lookup,
+       transport_module: ThousandIsland.Transports.TCP,
+       transport_options: init_arg.transport_options}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

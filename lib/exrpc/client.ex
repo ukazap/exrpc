@@ -1,30 +1,36 @@
-defmodule ExRPC.Client do
+defmodule Exrpc.Client do
   @moduledoc false
 
   @behaviour NimblePool
 
   require Logger
 
-  alias ExRPC.Codec
-  alias ExRPC.FunctionRoutes
+  alias Exrpc.Codec
+  alias Exrpc.MFALookup
 
   @opts [
     packet: :raw,
     mode: :binary,
-    active: false
+    active: false,
+    send_timeout: :infinity
   ]
 
-  @connect_timeout 10_000
+  @connect_timeout 30_000
 
   @type t :: pid() | atom()
 
   def start_link(opts) do
     {host, opts} = Keyword.pop!(opts, :host)
     {port, opts} = Keyword.pop!(opts, :port)
-    {send_timeout, opts} = Keyword.pop(opts, :send_timeout, 10_000)
+    {tcp_options, opts} = Keyword.pop(opts, :tcp_options, [])
+
+    tcp_options = Keyword.merge(@opts, tcp_options)
 
     opts =
-      Keyword.put(opts, :worker, {__MODULE__, %{server: {to_charlist(host), port, send_timeout}}})
+      Keyword.merge(opts,
+        worker: {__MODULE__, %{server: {to_charlist(host), port, tcp_options}}},
+        pool_size: Keyword.get(opts, :pool_size, 10)
+      )
 
     NimblePool.start_link(opts)
   end
@@ -38,10 +44,10 @@ defmodule ExRPC.Client do
     }
   end
 
-  @spec routes(t()) :: list()
-  def routes(client_pool) do
-    NimblePool.checkout!(client_pool, :checkout, fn _from, {_socket, routes} ->
-      {FunctionRoutes.to_list(routes), :ok}
+  @spec mfa_list(t()) :: list(mfa())
+  def mfa_list(client_pool) do
+    NimblePool.checkout!(client_pool, :checkout, fn _from, {_socket, mfa_lookup} ->
+      {MFALookup.to_list(mfa_lookup), :ok}
     end)
   end
 
@@ -49,11 +55,11 @@ defmodule ExRPC.Client do
           {:badrpc, atom} | {:badrpc, atom, binary} | any()
   def call(client_pool, m, f, a, timeout \\ :infinity)
       when is_atom(m) and is_atom(f) and is_list(a) do
-    NimblePool.checkout!(client_pool, :checkout, fn _from, {socket, routes} ->
+    NimblePool.checkout!(client_pool, :checkout, fn _from, {socket, mfa_lookup} ->
       with socket when is_port(socket) <- socket,
-           route_id when is_integer(route_id) <-
-             FunctionRoutes.route_to_id(routes, {m, f, length(a)}),
-           message <- "!" <> :erlang.term_to_binary([route_id, a]),
+           id when is_integer(id) <-
+             MFALookup.mfa_to_id(mfa_lookup, {m, f, length(a)}),
+           message <- "!" <> :erlang.term_to_binary([id, a]),
            :ok <- :gen_tcp.send(socket, message),
            {:ok, bin} <- :gen_tcp.recv(socket, 0, timeout) do
         {wrap_response(bin), :ok}
@@ -77,37 +83,16 @@ defmodule ExRPC.Client do
   end
 
   @impl NimblePool
-  def init_pool(%{server: {host, port, send_timeout}} = pool_state) do
-    {:ok, Map.put(pool_state, :routes, nil)}
-  end
-
-  defp create_socket(host, port, send_timeout) do
-    opts = Keyword.put(@opts, :send_timeout, send_timeout)
-
-    with {:ok, socket} <- :gen_tcp.connect(host, port, opts, @connect_timeout),
-         :ok <- :gen_tcp.controlling_process(socket, self()) do
-      {:ok, socket}
-    else
-      error -> error
-    end
-  end
-
-  defp fetch_mfa_list(socket) do
-    with :ok <- :gen_tcp.send(socket, Codec.encode(:list_routes)),
-         {:ok, bin} = :gen_tcp.recv(socket, 0),
-         {:goodrpc, [_ | _] = mfa_list} <- Codec.decode(bin) do
-      {:ok, mfa_list}
-    else
-      {:goodrpc, []} -> {:error, :no_available_mfa}
-    end
+  def init_pool(pool_state) do
+    {:ok, Map.put(pool_state, :mfa_lookup, nil)}
   end
 
   @impl NimblePool
-  def init_worker(%{server: {host, port, send_timeout}} = pool_state) do
+  def init_worker(%{server: {host, port, tcp_options}} = pool_state) do
     parent = self()
 
     async_fn = fn ->
-      with {:ok, socket} <- :gen_tcp.connect(host, port, @opts, @connect_timeout),
+      with {:ok, socket} <- :gen_tcp.connect(host, port, tcp_options, @connect_timeout),
            :ok <- :gen_tcp.controlling_process(socket, parent) do
         socket
       end
@@ -117,19 +102,21 @@ defmodule ExRPC.Client do
   end
 
   @impl NimblePool
-  def handle_checkout(:checkout, _from, socket, %{routes: nil} = pool_state)
+  def handle_checkout(:checkout, _from, socket, %{mfa_lookup: nil} = pool_state)
       when is_port(socket) do
-    with {:ok, mfa_list} <- fetch_mfa_list(socket),
-         {:ok, routes} <- FunctionRoutes.create(mfa_list) do
-      {:ok, {socket, routes}, socket, %{pool_state | routes: routes}}
-    else
-      {:error, :no_available_mfa} ->
+    mfa_list = fetch_mfa_list(socket)
+
+    case MFALookup.create(mfa_list) do
+      {:ok, mfa_lookup} ->
+        {:ok, {socket, mfa_lookup}, socket, %{pool_state | mfa_lookup: mfa_lookup}}
+
+      {:error, :empty_list} ->
         {:ok, {socket, []}, socket, pool_state}
     end
   end
 
   def handle_checkout(:checkout, _from, socket, pool_state) do
-    {:ok, {socket, pool_state.routes}, socket, pool_state}
+    {:ok, {socket, pool_state.mfa_lookup}, socket, pool_state}
   end
 
   @impl NimblePool
@@ -137,8 +124,18 @@ defmodule ExRPC.Client do
     {:ok, socket, pool_state}
   end
 
-  def handle_checkin({:error, reason}, _from, socket, pool_state) do
-    Logger.error("removing from pool #{inspect(socket)}, #{inspect(reason)}")
+  def handle_checkin({:error, reason}, _from, _socket, pool_state) do
+    # Logger.error("removing from pool #{inspect(socket)}, #{inspect(reason)}")
     {:remove, reason, pool_state}
+  end
+
+  defp fetch_mfa_list(socket) do
+    with :ok <- :gen_tcp.send(socket, Codec.encode(:mfa_list)),
+         {:ok, bin} = :gen_tcp.recv(socket, 0),
+         {:goodrpc, mfa_list} <- Codec.decode(bin) do
+      mfa_list
+    else
+      _error -> []
+    end
   end
 end

@@ -1,10 +1,10 @@
-defmodule ExRPC do
+defmodule Exrpc do
   @moduledoc "Elixir RPC without Erlang distribution"
 
-  @spec routes(ExRPC.Client.t()) :: list()
-  defdelegate routes(client_pool), to: ExRPC.Client
+  @spec mfa_list(Exrpc.Client.t()) :: list(mfa())
+  defdelegate mfa_list(client_pool), to: Exrpc.Client
 
-  @spec call(ExRPC.Client.t(), module(), atom(), list(), timeout()) ::
+  @spec call(Exrpc.Client.t(), module(), atom(), list(), timeout()) ::
           {:badrpc, atom} | {:badrpc, atom, binary} | any()
-  defdelegate call(client_pool, mod, fun, args, timeout \\ :infinity), to: ExRPC.Client
+  defdelegate call(client_pool, mod, fun, args, timeout \\ :infinity), to: Exrpc.Client
 end
