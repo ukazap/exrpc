@@ -78,18 +78,7 @@ defmodule ExRPC.Client do
 
   @impl NimblePool
   def init_pool(%{server: {host, port, send_timeout}} = pool_state) do
-    with {:ok, socket} <- create_socket(host, port, send_timeout),
-         {:ok, mfa_list} <- fetch_mfa_list(socket),
-         :ok <- :gen_tcp.close(socket),
-         {:ok, routes} <- FunctionRoutes.create(mfa_list) do
-      {:ok, Map.put(pool_state, :routes, routes)}
-    else
-      {:error, :econnrefused} ->
-        {:stop, :econnrefused}
-
-      {:error, :no_available_mfa} ->
-        {:stop, :no_available_mfa}
-    end
+    {:ok, Map.put(pool_state, :routes, nil)}
   end
 
   defp create_socket(host, port, send_timeout) do
@@ -128,6 +117,17 @@ defmodule ExRPC.Client do
   end
 
   @impl NimblePool
+  def handle_checkout(:checkout, _from, socket, %{routes: nil} = pool_state)
+      when is_port(socket) do
+    with {:ok, mfa_list} <- fetch_mfa_list(socket),
+         {:ok, routes} <- FunctionRoutes.create(mfa_list) do
+      {:ok, {socket, routes}, socket, %{pool_state | routes: routes}}
+    else
+      {:error, :no_available_mfa} ->
+        {:ok, {socket, []}, socket, pool_state}
+    end
+  end
+
   def handle_checkout(:checkout, _from, socket, pool_state) do
     {:ok, {socket, pool_state.routes}, socket, pool_state}
   end
