@@ -6,7 +6,7 @@ defmodule ExRPC.MixProject do
       app: :exrpc,
       description: "Simple Elixir RPC",
       package: package(),
-      version: "0.1.1",
+      version: "0.1.2",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -22,7 +22,7 @@ defmodule ExRPC.MixProject do
 
   def package do
     [
-      maintainers: ["Ukaza Perdana"],
+      maintainers: ["Ukaza Perdana", "Wildan Fathan"],
       licenses: ["MIT"],
       links: %{GitHub: "https://github.com/ukazap/exrpc"}
     ]
