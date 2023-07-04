@@ -74,5 +74,32 @@ defmodule ExRPCTest do
 
       assert "Hello world" = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
     end
+
+    test "starting server without routes should fail" do
+      function_list = []
+
+      assert_raise ArgumentError, fn ->
+        ExRPC.Server.start_link(name: RPC.Server, port: 5670, routes: function_list)
+      end
+    end
+
+    test "starting client before starting server should work" do
+      # client-side
+      start_supervised!(
+        {ExRPC.Client, name: RPC.Client, host: "localhost", port: 5670, pool_size: 5}
+      )
+
+      # server-side
+      function_list = [{Greeter, :hello, 1}]
+      start_supervised!({ExRPC.Server, name: RPC.Server, port: 5670, routes: function_list})
+
+      assert {:badrpc, :disconnected} = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
+
+      Enum.each(1..1000, fn _ ->
+        ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
+      end)
+
+      assert "Hello world" = ExRPC.call(RPC.Client, Greeter, :hello, ["world"])
+    end
   end
 end

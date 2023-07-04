@@ -7,9 +7,16 @@ defmodule ExRPC.Server do
   alias ExRPC.Server.Handler
 
   def start_link(opts) do
+    mfa_list = Keyword.get(opts, :routes, [])
+    routes =
+      case FunctionRoutes.create(mfa_list) do
+        {:ok, routes} -> routes
+        {:error, _} -> raise ArgumentError, "invalid or empty list of routes"
+      end
+
     init_arg = %{
       port: Keyword.fetch!(opts, :port),
-      mfa_list: Keyword.fetch!(opts, :routes)
+      routes: routes
     }
 
     Supervisor.start_link(__MODULE__, init_arg, name: opts[:name])
@@ -26,15 +33,9 @@ defmodule ExRPC.Server do
 
   @impl Supervisor
   def init(init_arg) do
-    routes =
-      case FunctionRoutes.create(init_arg[:mfa_list]) do
-        {:ok, routes} -> routes
-        {:error, _} -> raise "invalid or empty list of routes"
-      end
-
     children = [
       {ThousandIsland,
-       port: init_arg[:port], handler_module: Handler, handler_options: %{routes: routes}}
+       port: init_arg.port, handler_module: Handler, handler_options: %{routes: init_arg.routes}}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
