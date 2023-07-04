@@ -4,7 +4,7 @@ defmodule ExRPC.MixProject do
   def project do
     [
       app: :exrpc,
-      description: "Elixir RPC over ZeroMQ",
+      description: "Simple Elixir RPC",
       package: package(),
       version: "0.1.1",
       elixir: "~> 1.14",
