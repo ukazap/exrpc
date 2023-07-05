@@ -1,10 +1,10 @@
-defmodule ExRPC.MixProject do
+defmodule Exrpc.MixProject do
   use Mix.Project
 
   def project do
     [
       app: :exrpc,
-      description: "Simple Elixir RPC",
+      description: "Elixir RPC over HTTP/2",
       package: package(),
       version: "0.1.2",
       elixir: "~> 1.14",
@@ -28,15 +28,18 @@ defmodule ExRPC.MixProject do
     ]
   end
 
+  @dev_deps [
+    {:benchee, "~> 1.1", only: :test},
+    {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+    {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false}
+  ]
+
   defp deps do
     [
-      {:benchee, "~> 1.1", only: :test},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
-      {:nimble_pool, "~> 1.0"},
-      {:plug_crypto, "~> 1.2"},
-      {:thousand_island, "~> 0.6.7"},
-    ]
+      {:bandit, "~> 0.7.7"},
+      {:finch, "~> 0.16.0"},
+      {:plug_crypto, "~> 1.2"}
+    ] ++ @dev_deps
   end
 
   defp aliases do

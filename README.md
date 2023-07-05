@@ -1,6 +1,6 @@
-# ExRPC
+# Exrpc
 
-Elixir RPC without Erlang distribution.
+Elixir RPC over HTTP/2.
 
 ## Installation
 
@@ -22,7 +22,4 @@ be found at <https://hexdocs.pm/exrpc>.
 ## ToDo
 
 - [x] Function allowlist/routing
-- [ ] Benchmark vs gRPC vs HTTP JSON API vs `:rpc.call/4` (Erlang distribution)
-- [ ] Usage documentation
-- [ ] Design documentation
-- [ ] Publish to Hex.pm
+- [ ] Documentation
