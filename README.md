@@ -11,7 +11,7 @@ The package can be installed by adding `exrpc` to your list of dependencies in `
 ```elixir
 def deps do
   [
-    {:exrpc, "~> 0.3.4"}
+    {:exrpc, "~> 0.3.5"}
   ]
 end
 ```
