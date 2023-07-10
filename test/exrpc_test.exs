@@ -89,8 +89,8 @@ defmodule ExrpcTest do
                current_time: ~T[10:30:00]
        } = Enum.into(result, %{})
 
-      assert {:badrpc, :invalid_mfa} = Exrpc.call(RPC.Client, Greeter, :howdy, ["world"])
-      assert {:badrpc, :invalid_mfa} = Exrpc.call(RPC.Client, Greeter, :hello, [])
+      assert {:badrpc, :invalid_request} = Exrpc.call(RPC.Client, Greeter, :howdy, ["world"])
+      assert {:badrpc, :invalid_request} = Exrpc.call(RPC.Client, Greeter, :hello, [])
     end
   end
 

@@ -5,21 +5,18 @@ defmodule Exrpc.Codec do
   @type outbound :: {:goodrpc, any()} | {:badrpc, any()}
 
   @spec encode(term()) :: binary()
-  def encode({:goodrpc, data}), do: "0" <> term_to_binary(data)
-  def encode({:badrpc, :invalid_mfa}), do: "1"
-  def encode({:badrpc, :invalid_message}), do: "2"
-  def encode({:badrpc, reason}), do: "3" <> term_to_binary(reason)
+  def encode({:goodrpc, data}), do: "2" <> term_to_binary(data)
+  def encode({:badrpc, :invalid_request}), do: "4"
+  def encode({:badrpc, reason}), do: "5" <> term_to_binary(reason)
   def encode(:mfa_list), do: "?"
 
   def encode([fun_id, args] = term) when is_integer(fun_id) and is_list(args),
     do: "!" <> term_to_binary(term)
 
   @spec decode(binary()) :: term()
-  def decode("0" <> bin), do: {:goodrpc, binary_to_term(bin)}
-  def decode("1"), do: {:badrpc, :invalid_mfa}
-  def decode("2"), do: {:badrpc, :invalid_message}
-
-  def decode("3" <> bin) do
+  def decode("2" <> bin), do: {:goodrpc, binary_to_term(bin)}
+  def decode("4"), do: {:badrpc, :invalid_request}
+  def decode("5" <> bin) do
     case binary_to_term(bin) do
       :decode_error -> :decode_error
       reason -> {:badrpc, reason}

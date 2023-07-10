@@ -78,7 +78,7 @@ defmodule Exrpc.Client do
         {:badrpc, error} -> {{:badrpc, error}, :ok}
 
         # invalid mfa
-        nil -> {{:badrpc, :invalid_mfa}, :ok}
+        nil -> {{:badrpc, :invalid_request}, :ok}
       end
     end)
   end

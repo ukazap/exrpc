@@ -37,7 +37,7 @@ defmodule Exrpc.Server.Handler do
         end
 
       _ ->
-        {:badrpc, :invalid_mfa}
+        {:badrpc, :invalid_request}
     end
   end
 

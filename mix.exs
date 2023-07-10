@@ -6,7 +6,7 @@ defmodule Exrpc.MixProject do
       app: :exrpc,
       description: "Simple Elixir RPC",
       package: package(),
-      version: "0.3.3",
+      version: "0.3.4",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
