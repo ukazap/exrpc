@@ -6,13 +6,12 @@ Simple Elixir RPC.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `exrpc` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `exrpc` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:exrpc, "~> 0.3.1"}
+    {:exrpc, "~> 0.3.2"}
   ]
 end
 ```
