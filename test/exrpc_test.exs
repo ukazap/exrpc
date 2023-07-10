@@ -126,8 +126,10 @@ defmodule ExrpcTest do
       # stop server
       stop_supervised!({Exrpc.Server, RPC.Server})
 
-      :timer.sleep(500)
-      assert {:badrpc, :disconnected} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
+      Enum.each(1..1000, fn _ ->
+        assert {:badrpc, reason} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
+        assert reason in [:disconnected, :invalid_mfa]
+      end)
 
       start_supervised!({Exrpc.Server, name: RPC.Server, port: 5670, mfa_list: function_list})
 

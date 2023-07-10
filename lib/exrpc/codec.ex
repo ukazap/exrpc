@@ -39,7 +39,7 @@ defmodule Exrpc.Codec do
   defp term_to_binary(term), do: :erlang.term_to_binary(term)
 
   defp binary_to_term(bin) do
-    Plug.Crypto.non_executable_binary_to_term(bin, [:safe])
+    Plug.Crypto.non_executable_binary_to_term(bin)
   rescue
     ArgumentError ->
       :decode_error
