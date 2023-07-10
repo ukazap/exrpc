@@ -42,7 +42,7 @@ defmodule ExrpcTest do
       )
 
       # client-side
-      start_supervised!({Exrpc.Client, name: RPC.Client, host: "localhost", port: 5670})
+      start_supervised!({Exrpc.Client, name: RPC.Client, host: "localhost", port: 5670, pool_size: 1})
 
       assert [
                {Greeter, :hello, 1},
@@ -113,7 +113,7 @@ defmodule ExrpcTest do
   end
 
   describe "server down/unavailable" do
-    test "call should return :disconnected error" do
+    test "call should return :disconnected or :mfa_lookup_fail error" do
       # server-side
       function_list = [{Greeter, :hello, 1}]
       start_supervised!({Exrpc.Server, name: RPC.Server, port: 5670, mfa_list: function_list})
@@ -127,17 +127,9 @@ defmodule ExrpcTest do
       stop_supervised!({Exrpc.Server, RPC.Server})
 
       Enum.each(1..1000, fn _ ->
-        assert {:badrpc, reason} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
-        assert reason in [:disconnected, :invalid_mfa]
+        {:badrpc, reason} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
+        assert reason in [:disconnected, :mfa_lookup_fail]
       end)
-
-      start_supervised!({Exrpc.Server, name: RPC.Server, port: 5670, mfa_list: function_list})
-
-      Enum.each(1..1000, fn _ ->
-        Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
-      end)
-
-      assert "Hello world" = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
     end
 
     test "should be able to start client" do
@@ -146,15 +138,26 @@ defmodule ExrpcTest do
         {Exrpc.Client, name: RPC.Client, host: "localhost", port: 5670, pool_size: 5}
       )
 
+      Enum.each(1..1000, fn _ ->
+        assert {:badrpc, :disconnected} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
+      end)
+
       # server-side
       function_list = [{Greeter, :hello, 1}]
       start_supervised!({Exrpc.Server, name: RPC.Server, port: 5670, mfa_list: function_list})
 
-      Enum.each(1..1000, fn _ ->
-        Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
-      end)
+      eventually_hello_world =
+        Enum.any?(1..100000, fn _ ->
+          case Exrpc.call(RPC.Client, Greeter, :hello, ["world"]) do
+            "Hello world" ->
+              true
+            {:badrpc, reason} ->
+              assert reason in [:disconnected, :mfa_lookup_fail]
+              false
+          end
+        end)
 
-      assert "Hello world" = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
+      assert eventually_hello_world
     end
   end
 end

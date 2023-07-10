@@ -64,13 +64,21 @@ defmodule Exrpc.Client do
            {:ok, bin} <- :gen_tcp.recv(socket, 0, timeout) do
         {wrap_response(bin), :ok}
       else
-        nil -> {{:badrpc, :invalid_mfa}, :ok}
+        # tcp issues
         {:error, :closed} = error -> {{:badrpc, :disconnected}, error}
         {:error, :econnrefused} = error -> {{:badrpc, :disconnected}, error}
         {:error, :econnreset} = error -> {{:badrpc, :disconnected}, error}
         {:error, :enotconn} = error -> {{:badrpc, :disconnected}, error}
+
+        # mfa list was not fetched successfully
+        {:error, :invalid_mfa_lookup} -> {{:badrpc, :mfa_lookup_fail}, :ok}
+
+        # apply error
         {:error, error} -> {{:badrpc, error}, :ok}
         {:badrpc, error} -> {{:badrpc, error}, :ok}
+
+        # invalid mfa
+        nil -> {{:badrpc, :invalid_mfa}, :ok}
       end
     end)
   end
@@ -112,7 +120,7 @@ defmodule Exrpc.Client do
         {:ok, {socket, mfa_lookup}, socket, %{pool_state | mfa_lookup: mfa_lookup}}
 
       {:error, :empty_list} ->
-        {:ok, {socket, []}, socket, pool_state}
+        {:ok, {socket, nil}, socket, pool_state}
     end
   end
 

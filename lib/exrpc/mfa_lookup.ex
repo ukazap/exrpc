@@ -76,7 +76,7 @@ defmodule Exrpc.MFALookup do
     end
   end
 
-  def mfa_to_id(_, _), do: nil
+  def mfa_to_id(_, _), do: {:error, :invalid_mfa_lookup}
 
   @spec id_to_mfa(t(), id()) :: {module(), function_name(), arity()} | nil
   def id_to_mfa({_, id2mfa}, id) do
@@ -86,5 +86,5 @@ defmodule Exrpc.MFALookup do
     end
   end
 
-  def id_to_mfa(_, _), do: nil
+  def id_to_mfa(_, _), do: {:error, :invalid_mfa_lookup}
 end
