@@ -68,6 +68,7 @@ defmodule Exrpc.Client do
         {:error, :closed} = error -> {{:badrpc, :disconnected}, error}
         {:error, :econnrefused} = error -> {{:badrpc, :disconnected}, error}
         {:error, :econnreset} = error -> {{:badrpc, :disconnected}, error}
+        {:error, :enotconn} = error -> {{:badrpc, :disconnected}, error}
         {:error, error} -> {{:badrpc, error}, :ok}
         {:badrpc, error} -> {{:badrpc, error}, :ok}
       end
@@ -125,7 +126,6 @@ defmodule Exrpc.Client do
   end
 
   def handle_checkin({:error, reason}, _from, _socket, pool_state) do
-    # Logger.error("removing from pool #{inspect(socket)}, #{inspect(reason)}")
     {:remove, reason, pool_state}
   end
 

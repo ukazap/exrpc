@@ -13,22 +13,46 @@ defmodule Exrpc.MFA do
       iex> Exrpc.MFA.valid?(&Enum.into/2)
       true
       iex> Exrpc.MFA.valid?(&Enum.into/255)
-      false
+      true
       iex> Exrpc.MFA.valid?(&Enum.get_rich_quick/1)
+      true
+      iex> Exrpc.MFA.valid?(Enum)
       false
   """
   @spec valid?(mfa() | fun()) :: boolean()
   def valid?({mod, fun, arity})
       when is_atom(mod) and is_atom(fun) and is_integer(arity) and arity >= 0 do
+    true
+  end
+
+  def valid?(fun) when is_function(fun), do: true
+  def valid?(_), do: false
+
+  @doc """
+  Checks if the given `{module, function, arity}` or `&module.function/arity` is callable.
+
+  ## Examples
+
+      iex> Exrpc.MFA.callable?({Enum, :into, 2})
+      true
+      iex> Exrpc.MFA.callable?(&Enum.into/2)
+      true
+      iex> Exrpc.MFA.callable?(&Enum.into/255)
+      false
+      iex> Exrpc.MFA.callable?(&Enum.get_rich_quick/1)
+      false
+  """
+  @spec callable?(mfa() | fun()) :: boolean()
+  def callable?({mod, fun, arity}) do
     function_exported?(mod, fun, arity)
   end
 
-  def valid?(fun) when is_function(fun) do
+  def callable?(fun) when is_function(fun) do
     info = Function.info(fun)
-    info[:type] == :external and function_exported?(info[:module], info[:name], info[:arity])
+    function_exported?(info[:module], info[:name], info[:arity])
   end
 
-  def valid?(_), do: false
+  def callable?(_), do: false
 
   @doc """
   Creates `{module, function, arity}` tuple from the given `&module.function/arity` or `{module, function, arity}`.

@@ -15,6 +15,7 @@ defmodule Exrpc.Server do
       opts
       |> Keyword.fetch!(:mfa_list)
       |> Enum.filter(&MFA.valid?/1)
+      |> Enum.filter(&MFA.callable?/1)
       |> Enum.uniq()
       |> case do
         [] -> raise ArgumentError, "invalid mfa_list"
