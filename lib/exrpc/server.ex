@@ -22,13 +22,9 @@ defmodule Exrpc.Server do
         list -> list
       end
 
-    # see https://hexdocs.pm/thousand_island/ThousandIsland.Transports.TCP.html
-    transport_options = Keyword.get(opts, :transport_options, [])
-
     init_arg = %{
       port: port,
-      mfa_list: mfa_list,
-      transport_options: transport_options
+      mfa_list: mfa_list
     }
 
     Supervisor.start_link(__MODULE__, init_arg, name: opts[:name])
@@ -53,7 +49,7 @@ defmodule Exrpc.Server do
        handler_module: Handler,
        handler_options: mfa_lookup,
        transport_module: ThousandIsland.Transports.TCP,
-       transport_options: init_arg.transport_options}
+       transport_options: [keepalive: true]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

@@ -12,7 +12,7 @@ defmodule Exrpc.Client do
     packet: :raw,
     mode: :binary,
     active: false,
-    send_timeout: :infinity
+    keepalive: true
   ]
 
   @connect_timeout 30_000
@@ -22,13 +22,10 @@ defmodule Exrpc.Client do
   def start_link(opts) do
     {host, opts} = Keyword.pop!(opts, :host)
     {port, opts} = Keyword.pop!(opts, :port)
-    {tcp_options, opts} = Keyword.pop(opts, :tcp_options, [])
-
-    tcp_options = Keyword.merge(@opts, tcp_options)
 
     opts =
       Keyword.merge(opts,
-        worker: {__MODULE__, %{server: {to_charlist(host), port, tcp_options}}},
+        worker: {__MODULE__, %{server: {to_charlist(host), port, @opts}}},
         pool_size: Keyword.get(opts, :pool_size, 10)
       )
 
