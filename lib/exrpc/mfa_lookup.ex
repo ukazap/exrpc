@@ -76,6 +76,8 @@ defmodule Exrpc.MFALookup do
     end
   end
 
+  def mfa_to_id(_, _), do: nil
+
   @spec id_to_mfa(t(), id()) :: {module(), function_name(), arity()} | nil
   def id_to_mfa({_, id2mfa}, id) do
     case :ets.lookup(id2mfa, id) do
@@ -83,4 +85,6 @@ defmodule Exrpc.MFALookup do
       [] -> nil
     end
   end
+
+  def id_to_mfa(_, _), do: nil
 end

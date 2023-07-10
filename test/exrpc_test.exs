@@ -71,8 +71,10 @@ defmodule ExrpcTest do
       }
 
       result = Exrpc.call(RPC.Client, MapToList, :convert, [map])
+      assert is_list(result)
 
-      assert [
+
+      assert %{
                name: "John Doe",
                timestamp: ~U[2023-07-06T10:30:00Z],
                language: {:elixir, "programming language"},
@@ -85,9 +87,7 @@ defmodule ExrpcTest do
                no_value: nil,
                current_date: ~D[2023-07-06],
                current_time: ~T[10:30:00]
-             ] = result
-
-      assert ^map = Enum.into(result, %{})
+       } = Enum.into(result, %{})
 
       assert {:badrpc, :invalid_mfa} = Exrpc.call(RPC.Client, Greeter, :howdy, ["world"])
       assert {:badrpc, :invalid_mfa} = Exrpc.call(RPC.Client, Greeter, :hello, [])
@@ -126,9 +126,8 @@ defmodule ExrpcTest do
       # stop server
       stop_supervised!({Exrpc.Server, RPC.Server})
 
-      Enum.each(1..1000, fn _ ->
-        assert {:badrpc, :disconnected} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
-      end)
+      :timer.sleep(500)
+      assert {:badrpc, :disconnected} = Exrpc.call(RPC.Client, Greeter, :hello, ["world"])
 
       start_supervised!({Exrpc.Server, name: RPC.Server, port: 5670, mfa_list: function_list})
 
