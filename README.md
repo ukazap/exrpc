@@ -11,14 +11,14 @@ The package can be installed by adding `exrpc` to your list of dependencies in `
 ```elixir
 def deps do
   [
-    {:exrpc, "~> 0.3.5"}
+    {:exrpc, "~> x.y.z"}
   ]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/exrpc>.
+# Usage
+
+Documentation can be found at [HexDocs](https://hexdocs.pm/exrpc).
 
 ## ToDo
 

@@ -26,7 +26,7 @@ defmodule Exrpc.Client do
     opts =
       Keyword.merge(opts,
         worker: {__MODULE__, %{server: {to_charlist(host), port, @opts}}},
-        pool_size: Keyword.get(opts, :pool_size, 10)
+        pool_size: Keyword.get(opts, :pool_size, 50)
       )
 
     NimblePool.start_link(opts)
@@ -42,23 +42,23 @@ defmodule Exrpc.Client do
   end
 
   @spec mfa_list(t()) :: list(mfa())
-  def mfa_list(client_pool) do
-    NimblePool.checkout!(client_pool, :checkout, fn _from, {_socket, mfa_lookup} ->
+  def mfa_list(client) do
+    NimblePool.checkout!(client, :checkout, fn _from, {_socket, mfa_lookup} ->
       {MFALookup.to_list(mfa_lookup), :ok}
     end)
   end
 
   @spec call(t(), module(), atom(), list(), integer() | atom()) ::
           {:badrpc, atom} | {:badrpc, atom, binary} | any()
-  def call(client_pool, m, f, a, timeout \\ :infinity)
+  def call(client, m, f, a, timeout \\ :infinity)
       when is_atom(m) and is_atom(f) and is_list(a) do
-    NimblePool.checkout!(client_pool, :checkout, fn _from, {socket, mfa_lookup} ->
+    NimblePool.checkout!(client, :checkout, fn _from, {socket, mfa_lookup} ->
       with socket when is_port(socket) <- socket,
            id when is_integer(id) <-
              MFALookup.mfa_to_id(mfa_lookup, {m, f, length(a)}),
            message <- "!" <> :erlang.term_to_binary([id, a]),
            :ok <- :gen_tcp.send(socket, message),
-           {:ok, bin} <- :gen_tcp.recv(socket, 0, timeout) do
+           {:ok, bin} <- :gen_tcp.recv(socket, 0) do
         {wrap_response(bin), :ok}
       else
         # tcp issues
@@ -66,18 +66,15 @@ defmodule Exrpc.Client do
         {:error, :econnrefused} = error -> {{:badrpc, :disconnected}, error}
         {:error, :econnreset} = error -> {{:badrpc, :disconnected}, error}
         {:error, :enotconn} = error -> {{:badrpc, :disconnected}, error}
-
         # mfa list was not fetched successfully
         {:error, :invalid_mfa_lookup} -> {{:badrpc, :mfa_lookup_fail}, :ok}
-
         # apply error
         {:error, error} -> {{:badrpc, error}, :ok}
         {:badrpc, error} -> {{:badrpc, error}, :ok}
-
         # invalid mfa
         nil -> {{:badrpc, :invalid_request}, :ok}
       end
-    end)
+    end, timeout)
   end
 
   defp wrap_response(bin) do

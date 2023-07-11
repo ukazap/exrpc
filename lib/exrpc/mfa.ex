@@ -1,6 +1,6 @@
 defmodule Exrpc.MFA do
   @moduledoc """
-  This module provides functions validate and create `{module, function, arity}` tuple.
+  This module provides functions to validate and create `{module, function, arity}` tuple.
   """
 
   @doc """
