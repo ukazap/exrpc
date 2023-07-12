@@ -13,6 +13,8 @@ defmodule Bench do
     # client-side
     start_supervised!({Exrpc.Client, name: RPC.Client, host: "localhost", port: 5670})
 
+    "Hello world" = Exrpc.call(RPC.Client, Greeter, :hello, ["world"], 5000)
+
     Benchee.run(
       %{
         "hello_world" => fn -> Exrpc.call(RPC.Client, Greeter, :hello, ["world"]) end

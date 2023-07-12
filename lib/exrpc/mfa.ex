@@ -4,7 +4,7 @@ defmodule Exrpc.MFA do
   """
 
   @doc """
-  Checks if the given `{module, function, arity}` or `&module.function/arity` is valid.
+  Check if the given input is in the form of `{module, function, arity}` or `&module.function/arity`.
 
   ## Examples
 
@@ -29,7 +29,7 @@ defmodule Exrpc.MFA do
   def valid?(_), do: false
 
   @doc """
-  Checks if the given `{module, function, arity}` or `&module.function/arity` is callable.
+  Check if the given `{module, function, arity}` or `&module.function/arity` is callable.
 
   ## Examples
 

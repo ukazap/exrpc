@@ -10,22 +10,31 @@ end
 defmodule ExrpcTest do
   use ExUnit.Case
 
+  setup do
+    name = Stream.repeatedly(fn -> Enum.random(?a..?z) end) |> Enum.take(10) |> to_string()
+
+    [
+      server: :"server_#{name}",
+      client: :"client_#{name}"
+    ]
+  end
+
   describe "empty function list" do
-    test "should not be able to start server" do
+    test "should not be able to start server", ctx do
       function_list = []
 
       assert_raise ArgumentError, fn ->
-        Exrpc.Server.start_link(name: :exrpc_server, port: 5670, mfa_list: function_list)
+        Exrpc.Server.start_link(name: ctx[:server], port: 5670, mfa_list: function_list)
       end
     end
   end
 
   describe "server and client started" do
-    test "call should work" do
+    test "rpc calls should work", ctx do
       # server-side
       start_supervised!(
         {Exrpc.Server,
-         name: :exrpc_server,
+         name: ctx[:server],
          port: 5670,
          mfa_list: [
            &RemoteModule.hello/1,
@@ -37,21 +46,22 @@ defmodule ExrpcTest do
       )
 
       # client-side
-      start_supervised!(
-        {Exrpc.Client, name: :rpc_client, host: "localhost", port: 5670, pool_size: 1}
-      )
+      start_supervised!({Exrpc.Client, name: ctx[:client], host: "localhost", port: 5670})
 
-      assert [
-               {RemoteModule, :hello, 1},
-               {RemoteModule, :goodbye, 1},
-               {RemoteModule, :add, 2},
-               {RemoteModule, :map_to_list, 1},
-               {RemoteModule, :raise_error, 1}
-             ] = Exrpc.mfa_list(:rpc_client)
+      assert Stream.repeatedly(fn -> Exrpc.mfa_list(ctx[:client]) end)
+             |> Enum.any?(fn list ->
+               list == [
+                 {RemoteModule, :hello, 1},
+                 {RemoteModule, :goodbye, 1},
+                 {RemoteModule, :add, 2},
+                 {RemoteModule, :map_to_list, 1},
+                 {RemoteModule, :raise_error, 1}
+               ]
+             end)
 
-      assert "Hello world" = Exrpc.call(:rpc_client, RemoteModule, :hello, ["world"])
-      assert "Goodbye my love" = Exrpc.call(:rpc_client, RemoteModule, :goodbye, ["my love"])
-      assert 5 = Exrpc.call(:rpc_client, RemoteModule, :add, [2, 3])
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"])
+      assert "Goodbye my love" = Exrpc.call(ctx[:client], RemoteModule, :goodbye, ["my love"])
+      assert 5 = Exrpc.call(ctx[:client], RemoteModule, :add, [2, 3])
 
       map = %{
         name: "John Doe",
@@ -68,7 +78,7 @@ defmodule ExrpcTest do
         timestamp: ~U[2023-07-06T10:30:00Z]
       }
 
-      result = Exrpc.call(:rpc_client, RemoteModule, :map_to_list, [map])
+      result = Exrpc.call(ctx[:client], RemoteModule, :map_to_list, [map])
       assert is_list(result)
 
       assert %{
@@ -87,82 +97,61 @@ defmodule ExrpcTest do
              } = Enum.into(result, %{})
 
       assert {:badrpc, :invalid_request} =
-               Exrpc.call(:rpc_client, RemoteModule, :howdy, ["world"])
+               Exrpc.call(ctx[:client], RemoteModule, :howdy, ["world"])
 
-      assert {:badrpc, :invalid_request} = Exrpc.call(:rpc_client, RemoteModule, :hello, [])
+      assert {:badrpc, :invalid_request} = Exrpc.call(ctx[:client], RemoteModule, :hello, [])
 
-      assert {:badrpc, %RuntimeError{message: "ugh"}} = Exrpc.call(:rpc_client, RemoteModule, :raise_error, ["ugh"])
+      assert {:badrpc, %RuntimeError{message: "ugh"}} =
+               Exrpc.call(ctx[:client], RemoteModule, :raise_error, ["ugh"])
     end
   end
 
   describe "server takes too long to reply" do
-    test "call should return :timeout error" do
+    test "call should return :timeout error", ctx do
       # server-side
       start_supervised!(
-        {Exrpc.Server, name: :exrpc_server, port: 5670, mfa_list: [&RemoteModule.sleep/1]}
+        {Exrpc.Server, name: ctx[:server], port: 5670, mfa_list: [&RemoteModule.sleep/1]}
       )
 
       # client-side
-      start_supervised!(
-        {Exrpc.Client, name: :rpc_client, host: "localhost", port: 5670}
-      )
+      start_supervised!({Exrpc.Client, name: ctx[:client], host: "localhost", port: 5670})
 
       timeout = 10
 
-      assert {:badrpc, :timeout} =
-               Exrpc.call(:rpc_client, RemoteModule, :sleep, [500], timeout)
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :sleep, [500], timeout)
     end
   end
 
-  describe "server down/unavailable" do
-    test "call should return :disconnected or :mfa_lookup_fail error" do
-      # server-side
-      start_supervised!(
-        {Exrpc.Server, name: :exrpc_server, port: 5670, mfa_list: [&RemoteModule.hello/1]}
-      )
+  describe "server goes down" do
+    test "call should return :timeout error", ctx do
+      server_pid =
+        start_supervised!(
+          {Exrpc.Server, name: ctx[:server], port: 5670, mfa_list: [&RemoteModule.hello/1]}
+        )
 
-      # client-side
-      start_supervised!(
-        {Exrpc.Client, name: :rpc_client, host: "localhost", port: 5670, pool_size: 5}
-      )
-
-      # stop server
-      stop_supervised!({Exrpc.Server, :exrpc_server})
-
-      Enum.each(1..1000, fn _ ->
-        {:badrpc, reason} = Exrpc.call(:rpc_client, RemoteModule, :hello, ["world"])
-        assert reason in [:disconnected, :mfa_lookup_fail]
-      end)
+      start_supervised!({Exrpc.Client, name: ctx[:client], host: "localhost", port: 5670})
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 1000)
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      Process.exit(server_pid, :kill)
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
     end
+  end
 
-    test "should be able to start client" do
-      # client-side
-      start_supervised!(
-        {Exrpc.Client, name: :rpc_client, host: "localhost", port: 5670, pool_size: 5}
-      )
+  describe "server down/unavailable when the client starts" do
+    test "call should return :mfa_lookup_fail or :timeout error", ctx do
+      start_supervised!({Exrpc.Client, name: ctx[:client], host: "localhost", port: 5670})
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 1000)
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      assert [] = Exrpc.mfa_list(ctx[:client])
 
-      Enum.each(1..1000, fn _ ->
-        assert {:badrpc, :disconnected} = Exrpc.call(:rpc_client, RemoteModule, :hello, ["world"])
-      end)
+      # start_supervised!({Exrpc.Server, name: ctx[:server], port: 5670, mfa_list: [&RemoteModule.hello/1]})
+      {:ok, _} =
+        Exrpc.Server.start_link(name: ctx[:server], port: 5670, mfa_list: [&RemoteModule.hello/1])
 
-      # server-side
-      start_supervised!(
-        {Exrpc.Server, name: :exrpc_server, port: 5670, mfa_list: [&RemoteModule.hello/1]}
-      )
-
-      eventually_succeed =
-        Enum.any?(1..100_000, fn _ ->
-          case Exrpc.call(:rpc_client, RemoteModule, :hello, ["world"]) do
-            "Hello world" ->
-              true
-
-            {:badrpc, reason} ->
-              assert reason in [:disconnected, :mfa_lookup_fail]
-              false
-          end
-        end)
-
-      assert eventually_succeed
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 5000)
+      assert [{RemoteModule, :hello, 1}] = Exrpc.mfa_list(ctx[:client])
     end
   end
 end

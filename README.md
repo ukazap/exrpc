@@ -1,8 +1,6 @@
 # Exrpc
 
-Simple Elixir RPC.
-
-**!!! This is a pre-stable release, expect breaking API changes !!!**
+Lean Elixir RPC library based on RESP (REdis Serialization Protocol).
 
 ## Installation
 
@@ -20,8 +18,6 @@ end
 
 Documentation can be found at [HexDocs](https://hexdocs.pm/exrpc).
 
-## ToDo
+# License
 
-- [x] Function allowlist/routing
-- [x] Publish to Hex.pm
-- [ ] Documentation
+[MIT](LICENSE)
