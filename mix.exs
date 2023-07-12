@@ -1,13 +1,13 @@
 defmodule Exrpc.MixProject do
   use Mix.Project
 
-  @version "0.3.6"
+  @version "0.4.0"
   @url "https://github.com/ukazap/exrpc"
 
   def project do
     [
       app: :exrpc,
-      description: "Simple Elixir RPC",
+      description: "Lean Elixir RPC library based on RESP (REdis Serialization Protocol)",
       package: package(),
       version: @version,
       elixir: "~> 1.14",
@@ -26,7 +26,7 @@ defmodule Exrpc.MixProject do
 
   def package do
     [
-      maintainers: ["Ukaza Perdana", "Wildan Fathan"],
+      maintainers: ["Ukaza Perdana"],
       licenses: ["MIT"],
       links: %{GitHub: @url}
     ]
@@ -36,10 +36,11 @@ defmodule Exrpc.MixProject do
     [
       {:benchee, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.30.1", only: :dev, runtime: :false},
-      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
-      {:nimble_pool, "~> 1.0"},
+      {:ex_doc, "~> 0.30.1", only: :dev, runtime: false},
+      {:memoize, "~> 1.4"},
       {:plug_crypto, "~> 1.2"},
+      {:redix, "~> 1.2"},
+      {:sobelow, "~> 0.12", only: [:dev, :test], runtime: false},
       {:thousand_island, "~> 0.6.7"}
     ]
   end

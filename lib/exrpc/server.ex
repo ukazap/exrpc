@@ -1,21 +1,23 @@
 defmodule Exrpc.Server do
-  @moduledoc false
-
   use Supervisor
+
+  require Logger
 
   alias Exrpc.MFA
   alias Exrpc.MFALookup
   alias Exrpc.Server.Handler
+  alias ThousandIsland.Transports.TCP
 
+  @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
+    name = Keyword.fetch!(opts, :name)
     port = Keyword.fetch!(opts, :port)
     if !is_integer(port), do: raise(ArgumentError, "invalid port #{inspect(port)}")
 
     mfa_list =
       opts
       |> Keyword.fetch!(:mfa_list)
-      |> Enum.filter(&MFA.valid?/1)
-      |> Enum.filter(&MFA.callable?/1)
+      |> Enum.filter(&(MFA.valid?(&1) and MFA.callable?(&1)))
       |> Enum.uniq()
       |> case do
         [] -> raise ArgumentError, "invalid mfa_list"
@@ -23,11 +25,12 @@ defmodule Exrpc.Server do
       end
 
     init_arg = %{
+      name: name,
       port: port,
       mfa_list: mfa_list
     }
 
-    Supervisor.start_link(__MODULE__, init_arg, name: opts[:name])
+    Supervisor.start_link(__MODULE__, init_arg, name: name)
   end
 
   @spec child_spec(keyword()) :: Supervisor.child_spec()
@@ -41,14 +44,15 @@ defmodule Exrpc.Server do
 
   @impl Supervisor
   def init(init_arg) do
+    Logger.info("[#{__MODULE__}] #{init_arg.name} listening on port #{init_arg.port}")
     {:ok, mfa_lookup} = MFALookup.create(init_arg.mfa_list)
 
     children = [
       {ThousandIsland,
        port: init_arg.port,
        handler_module: Handler,
-       handler_options: mfa_lookup,
-       transport_module: ThousandIsland.Transports.TCP,
+       handler_options: %Handler.State{mfa_lookup: mfa_lookup},
+       transport_module: TCP,
        transport_options: [keepalive: true]}
     ]
 
