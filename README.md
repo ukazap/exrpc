@@ -14,10 +14,10 @@ def deps do
 end
 ```
 
-# Usage
+## Usage
 
 Documentation can be found at [HexDocs](https://hexdocs.pm/exrpc).
 
-# License
+## License
 
 [MIT](LICENSE)
