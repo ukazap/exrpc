@@ -16,13 +16,17 @@ defmodule Exrpc.Request do
     do_decode([String.upcase(head) | tail])
   end
 
+  def decode(_) do
+    :invalid_request
+  end
+
   defp do_decode(["L"]) do
     :list
   end
 
   defp do_decode(["X", id_bin, arg_bin]) do
     case Plug.Crypto.non_executable_binary_to_term(arg_bin) do
-      [_ | _] = arg -> {:apply, String.to_integer(id_bin), arg}
+      arg when is_list(arg) -> {:apply, String.to_integer(id_bin), arg}
       _ -> :invalid_request
     end
   rescue

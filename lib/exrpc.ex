@@ -78,6 +78,7 @@ defmodule Exrpc do
     end
   end
 
+  @doc false
   def loop_call(client, mod, fun, arg, retries \\ 0) do
     delay_ms = calculate_delay_ms(retries)
     :timer.sleep(delay_ms)
@@ -92,10 +93,13 @@ defmodule Exrpc do
       :mfa_lookup_fail ->
         loop_call(client, mod, fun, arg, retries + 1)
 
+      nil ->
+        {:badrpc, :invalid_request}
+
       {:error, %Redix.ConnectionError{}} ->
         loop_call(client, mod, fun, arg, retries + 1)
 
-      nil ->
+      {:error, %Redix.Error{message: ""}} ->
         {:badrpc, :invalid_request}
 
       {:badrpc, reason} ->

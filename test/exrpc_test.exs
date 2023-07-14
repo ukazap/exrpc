@@ -1,4 +1,5 @@
 defmodule RemoteModule do
+  def ping(), do: "pong"
   def hello(name), do: "Hello #{name}"
   def goodbye(name), do: "Goodbye #{name}"
   def add(num1, num2), do: num1 + num2
@@ -37,6 +38,7 @@ defmodule ExrpcTest do
          name: ctx[:server],
          port: 5670,
          mfa_list: [
+           &RemoteModule.ping/0,
            &RemoteModule.hello/1,
            &RemoteModule.goodbye/1,
            &RemoteModule.add/2,
@@ -51,6 +53,7 @@ defmodule ExrpcTest do
       assert Stream.repeatedly(fn -> Exrpc.mfa_list(ctx[:client]) end)
              |> Enum.any?(fn list ->
                list == [
+                 {RemoteModule, :ping, 0},
                  {RemoteModule, :hello, 1},
                  {RemoteModule, :goodbye, 1},
                  {RemoteModule, :add, 2},
@@ -59,6 +62,7 @@ defmodule ExrpcTest do
                ]
              end)
 
+      assert "pong" = Exrpc.call(ctx[:client], RemoteModule, :ping, [])
       assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"])
       assert "Goodbye my love" = Exrpc.call(ctx[:client], RemoteModule, :goodbye, ["my love"])
       assert 5 = Exrpc.call(ctx[:client], RemoteModule, :add, [2, 3])
