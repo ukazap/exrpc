@@ -12,6 +12,7 @@ defmodule Exrpc.Server do
   def start_link(opts) do
     name = Keyword.fetch!(opts, :name)
     port = Keyword.fetch!(opts, :port)
+    shutdown_timeout = Keyword.get(opts, :shutdown_timeout, 15_000)
     if !is_integer(port), do: raise(ArgumentError, "invalid port #{inspect(port)}")
 
     mfa_list =
@@ -27,7 +28,8 @@ defmodule Exrpc.Server do
     init_arg = %{
       name: name,
       port: port,
-      mfa_list: mfa_list
+      mfa_list: mfa_list,
+      shutdown_timeout: shutdown_timeout
     }
 
     Supervisor.start_link(__MODULE__, init_arg, name: name)
@@ -47,15 +49,15 @@ defmodule Exrpc.Server do
     Logger.info("[#{__MODULE__}] #{init_arg.name} listening on port #{init_arg.port}")
     {:ok, mfa_lookup} = MFALookup.create(init_arg.mfa_list)
 
-    children = [
-      {ThousandIsland,
-       port: init_arg.port,
-       handler_module: Handler,
-       handler_options: %Handler.State{mfa_lookup: mfa_lookup},
-       transport_module: TCP,
-       transport_options: [keepalive: true]}
-    ]
-
-    Supervisor.init(children, strategy: :one_for_one)
+    {ThousandIsland,
+     port: init_arg.port,
+     handler_module: Handler,
+     handler_options: %Handler.State{mfa_lookup: mfa_lookup},
+     transport_module: TCP,
+     transport_options: [keepalive: true],
+     shutdown_timeout: init_arg.shutdown_timeout}
+    |> Supervisor.child_spec(shutdown: init_arg.shutdown_timeout)
+    |> List.wrap()
+    |> Supervisor.init(strategy: :one_for_one)
   end
 end
