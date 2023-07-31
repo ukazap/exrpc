@@ -68,12 +68,14 @@ defmodule Exrpc.MFALookup do
       iex> Exrpc.MFALookup.to_list(lookup)
       [{Greeter, :hello, 1}, {Greeter, :goodbye, 1}]
   """
-  @spec to_list(t()) :: [mfa()]
+  @spec to_list(t()) :: [mfa()] | {:error, :invalid_mfa_lookup}
   def to_list({mfa2id, _} = _mfa_lookup) do
     mfa2id
     |> :ets.tab2list()
     |> Enum.sort_by(fn {_, id} -> id end)
     |> Enum.map(fn {fun, _} -> fun end)
+  rescue
+    ArgumentError -> {:error, :invalid_mfa_lookup}
   end
 
   @doc """
@@ -92,12 +94,14 @@ defmodule Exrpc.MFALookup do
       iex> Exrpc.MFALookup.mfa_to_id(lookup, {Greeter, :heyyyy, 1})
       nil
   """
-  @spec mfa_to_id(t(), mfa()) :: integer() | nil
+  @spec mfa_to_id(t(), mfa()) :: integer() | nil | {:error, :invalid_mfa_lookup}
   def mfa_to_id({mfa2id, _} = _mfa_lookup, {module_name, function_name, arity} = _mfa) do
     case :ets.lookup(mfa2id, {module_name, function_name, arity}) do
       [{_, id}] -> id
       [] -> nil
     end
+  rescue
+    ArgumentError -> {:error, :invalid_mfa_lookup}
   end
 
   def mfa_to_id(_, _), do: {:error, :invalid_mfa_lookup}
@@ -118,12 +122,14 @@ defmodule Exrpc.MFALookup do
       iex> Exrpc.MFALookup.id_to_mfa(lookup, 2)
       nil
   """
-  @spec id_to_mfa(t(), integer()) :: mfa() | nil
+  @spec id_to_mfa(t(), integer()) :: mfa() | nil | {:error, :invalid_mfa_lookup}
   def id_to_mfa({_, id2mfa} = _mfa_lookup, id) do
     case :ets.lookup(id2mfa, id) do
       [{_, {module_name, function_name, arity}}] -> {module_name, function_name, arity}
       [] -> nil
     end
+  rescue
+    ArgumentError -> {:error, :invalid_mfa_lookup}
   end
 
   def id_to_mfa(_, _), do: {:error, :invalid_mfa_lookup}

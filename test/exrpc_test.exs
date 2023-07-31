@@ -158,4 +158,32 @@ defmodule ExrpcTest do
       assert [{RemoteModule, :hello, 1}] = Exrpc.mfa_list(ctx[:client])
     end
   end
+
+  describe "server shutdown while client is connected" do
+    test "should shutdown within shutdown_ms", ctx do
+      {:ok, server_pid} =
+        Exrpc.Server.start_link(
+          name: ctx[:server],
+          port: 5670,
+          mfa_list: [&RemoteModule.hello/1],
+          shutdown_timeout: 500
+        )
+
+      Exrpc.Client.start_link(name: ctx[:client], host: "localhost", port: 5670)
+
+      # wait until client and server are connected
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 5000)
+
+      # shut down server
+      Task.async(fn -> Supervisor.stop(ctx[:server], :normal) end)
+
+      Process.sleep(300)
+      assert "Hello world" = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      assert Process.alive?(server_pid)
+
+      Process.sleep(500)
+      assert {:badrpc, :timeout} = Exrpc.call(ctx[:client], RemoteModule, :hello, ["world"], 100)
+      refute Process.alive?(server_pid)
+    end
+  end
 end
